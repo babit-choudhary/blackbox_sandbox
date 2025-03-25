@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import Input from '../../../components/Input';
+import utils from './utils'; // Import the aggregated utilities
 import { FormField, FormSection, FormRow, FormActions } from '../../../components/Form';
 import Button from '../../../components/Button';
 import FileUpload from '../../../components/FileUpload';
@@ -131,17 +132,14 @@ const ProductForm = ({
   const validate = () => {
     const newErrors = {};
 
-    // Basic validation
-    if (!formData.name) newErrors.name = 'Name is required';
-    if (!formData.sku) newErrors.sku = 'SKU is required';
-    if (!formData.price) newErrors.price = 'Price is required';
-    if (formData.price && isNaN(formData.price)) newErrors.price = 'Price must be a number';
-    if (formData.stock && isNaN(formData.stock)) newErrors.stock = 'Stock must be a number';
+    // Basic validation using utils
+    const productErrors = utils.product.validateProduct(formData);
+    Object.assign(newErrors, productErrors);
 
-    // Variant validation
+    // Variant validation using utils
     formData.variants.forEach((variant, index) => {
-      if (!variant.sku) newErrors[`variant_${index}_sku`] = 'Variant SKU is required';
-      if (!variant.price) newErrors[`variant_${index}_price`] = 'Variant price is required';
+      const variantErrors = utils.variant.validateVariant(variant);
+      Object.assign(newErrors, variantErrors);
     });
 
     // Custom product validation
@@ -158,7 +156,12 @@ const ProductForm = ({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validate()) {
-      onSubmit(formData);
+      // Generate SKUs for variants
+      const updatedVariants = formData.variants.map(variant => ({
+        ...variant,
+        sku: utils.variant.generateVariantSKU(variant.sku, formData.sku) // Generate SKU based on product SKU
+      }));
+      onSubmit({ ...formData, variants: updatedVariants });
     } else {
       Toast.error('Please fix the errors before submitting');
     }
